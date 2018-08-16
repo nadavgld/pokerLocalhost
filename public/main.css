@@ -1,0 +1,94 @@
+body{
+    background: #f0f0f0;
+}
+
+.middle-center {
+    margin-top: 20%;
+    margin-left: 30%;
+}
+
+.new-game-buttons {
+    text-align: center;
+    margin-top: 25%;
+    padding: 50px;
+    margin-left: 0;
+}
+
+.login-input {
+    display: block;
+    width: 20vw;
+    border: 1px solid rgb(204, 204, 204);
+    border-radius: 4px;
+    height: 40px;
+    margin: 10px;
+    padding-left: 10px;
+}
+
+.game-card {
+    border: 1px solid #555;
+    padding: 3px;
+    margin: 3px;
+    border-radius: 5px;
+    height: 100px;
+    width: 90px !important;
+    background: whitesmoke;
+}
+
+.card-number {
+    height: 40%;
+    text-align: center;
+    font-size: 45px;
+    line-height: 33px;
+}
+
+.upper-symbol {
+    text-align: left;
+}
+
+.lower-symbol {
+    float: right;
+    line-height: 13px;
+}
+
+.card-symbol {
+    font-size: 23px;
+    line-height: 27px;
+}
+
+.card-red {
+    color: red;
+}
+
+.card-black {
+    color: black;
+}
+
+.card-hidden{
+    color: whitesmoke !important;
+}
+
+.game-table {
+    width: 100%;
+    border: 4px solid #7c6842;
+    background: #6cd66c;
+    justify-content: center;
+    height: 240px;
+    align-items: center;
+    border-radius: 33px;
+    box-shadow: 0px 0px 7px rgba(75, 2, 2, 0.63);
+}
+
+.playerButtons {
+    align-items: center;
+    justify-content: space-evenly;
+    width: 50%;
+    margin-top: 15px;
+}
+
+.flippedCard {
+    background: #1e5799;
+    background: -moz-linear-gradient(45deg, #1e5799 0%, #2989d8 50%, #207cca 51%, #7db9e8 100%);
+    background: -webkit-linear-gradient(45deg, #1e5799 0%, #2989d8 50%, #207cca 51%, #7db9e8 100%);
+    background: linear-gradient(45deg, #1e5799 0%, #2989d8 50%, #207cca 51%, #7db9e8 100%);
+    filter: progid:DXImageTransform.Microsoft.gradient( startColorstr='#1e5799', endColorstr='#7db9e8', GradientType=1);
+}
