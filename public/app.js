@@ -15,6 +15,7 @@ app.controller('mainController', ['$scope', function ($scope) {
     self.watchers = []
     self.others = []
     self.myTurn = false;
+    self.gameOver = false;
     self.myBet = {
         "status": "",
         "bet": 0
@@ -53,6 +54,7 @@ app.controller('mainController', ['$scope', function ($scope) {
             })
 
             socket.on('noGames', () => {
+                waiting.isWaiting = false;
                 alert("Could not find any available game")
             })
 
@@ -63,6 +65,7 @@ app.controller('mainController', ['$scope', function ($scope) {
 
             socket.on('draw', function (data) {
                 self.inGame = true;
+                self.gameOver = false;
                 self.isWatcher = false;
                 self.position = data.position;
                 self.watchers = data.watchers;
@@ -104,8 +107,8 @@ app.controller('mainController', ['$scope', function ($scope) {
             socket.on('updatePlayers', function (players) {
                 self.others = players;
 
-                self.others.forEach( p => {
-                    if(p.username == self.player.username){
+                self.others.forEach(p => {
+                    if (p.username == self.player.username) {
                         self.player.tokens = p.tokens
                     }
                 });
@@ -134,6 +137,12 @@ app.controller('mainController', ['$scope', function ($scope) {
                     self.myBet.bet = 0;
                     $scope.$apply()
                 }
+            })
+
+            socket.on('gameOver', data => {
+                self.gameOver = true;
+
+                $scope.$apply();
             })
 
             socket.on('gameHasStarted', data => {

@@ -227,7 +227,7 @@ function nextRound(game) {
         game.highest = 0;
         game.players.forEach(p => p.bet = 0);
         updateGamesPlayers(game)
-        
+
     } else if (game.round == 2 || game.round == 3) {
         var { deck, cards } = drawCards(game.deck, 1);
 
@@ -251,8 +251,24 @@ function nextRound(game) {
         game.highest = 0;
         game.players.forEach(p => p.bet = 0);
         updateGamesPlayers(game)
-    }else{
+    } else {
         console.log("calculate winner");
+
+        game.players.forEach(player => {
+            var s = sockets.find(sk => sk.id == player.id)
+            if (s) {
+                s.emit('gameOver', {})
+            }
+        })
+
+        game.waiting.forEach(player => {
+            var s = sockets.find(sk => sk.id == player.id)
+            if (s) {
+                s.emit('gameOver', {})
+            }
+        })
+
+        updateGamesPlayers(game)
     }
 }
 
@@ -310,6 +326,7 @@ function initDraw(socket) {
     p.isFolded = false;
 
     var { deck, cards } = drawCards(game.deck, 2);
+    p.cards = cards;
     game.deck = deck;
 
     if (position == game.role.small) {
@@ -347,7 +364,8 @@ function getPlayersInGame(game, me) {
             tokens: p.tokens,
             bet: p.bet ? p.bet : 0,
             position: idx,
-            isFolded: p.isFolded
+            isFolded: p.isFolded,
+            cards: game.round == 4 ? p.cards : []
         })
     })
 
