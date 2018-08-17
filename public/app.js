@@ -21,7 +21,6 @@ app.controller('mainController', ['$scope', function ($scope) {
         "bet": 0
     }
     self.hideMyCards = false;
-    // self.role = ""
     self.role = {
         small: -1,
         big: -1,
@@ -119,6 +118,7 @@ app.controller('mainController', ['$scope', function ($scope) {
             socket.on('updateTurn', (game) => {
                 self.role.turn = game.turn
                 self.table_tokens = game.amount
+                self.tableBet = game.highest
                 self.myTurn = parseInt(game.turn) == parseInt(self.position)
 
                 $scope.$apply()
@@ -225,6 +225,22 @@ app.controller('mainController', ['$scope', function ($scope) {
         socket.emit('makeAMove', self.myBet)
 
         self.myBet.bet = self.tableBet
+    }
+
+    self.raise = function(){
+        var bet = self.myBet.bet;
+
+        if(bet < self.tableBet * 2){
+            alert("Raise must be at least twice the highest bet")
+        }else{
+            
+            if(!bet){
+                alert("Cannot bet more than your tokens")
+                return;
+            }
+            self.myBet.status = self.myBet.bet == self.player.tokens ? "all-in" : "raise"
+            socket.emit('makeAMove', self.myBet)
+        }
     }
 
     self.splitToHalf = function (others, first) {

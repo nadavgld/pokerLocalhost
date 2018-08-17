@@ -97,7 +97,6 @@ io.on('connection', function (socket) {
     })
 
     socket.on('draw', () => {
-        // var cards = GameManager.drawCard(2, socket.id)
         initDraw(socket);
     })
 
@@ -117,6 +116,11 @@ io.on('connection', function (socket) {
             p.bet = bet;
             p.tokens -= p_bet
             game.amount += p_bet
+        } else if (status == "raise") {
+            p.bet = p_bet;
+            p.tokens -= p_bet;
+            game.amount += p_bet;
+            game.highest = p_bet;
         }
 
         var nextTurn = nextPlayerInRound(game)
@@ -384,11 +388,8 @@ function getPlayersInGame(game, me) {
 }
 
 function clearPlayerFromGame(game, player_id) {
-    // var isTurn = false;
     try {
         var pl = game.players.findIndex(p => p.id == player_id);
-
-        // isTurn = pl == game.turn
 
         if (pl > -1)
             game.players.splice(pl, 1)
@@ -483,6 +484,11 @@ function drawCards(deck, number) {
 }
 
 function findFreeGame() {
+    for (var i = 0; i < games.length; i++) {
+        if (games[i].players.length + games[i].waiting.length < games[i].max && games[i].round == -1)
+            return games[i];
+    }
+
     for (var i = 0; i < games.length; i++) {
         if (games[i].players.length + games[i].waiting.length < games[i].max)
             return games[i];
