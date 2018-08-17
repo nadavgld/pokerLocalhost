@@ -56,11 +56,11 @@
                         <div class="col-md-12 mt-3">
                             <div class="d-block">
                                 <div class="d-flex playerButtons">
-                                    <button class="btn btn-default" ng-disabled="!myTurn" ng-click="call()">Call</button>
-                                    <button class="btn btn-warning" ng-disabled="!myTurn" ng-click="raise()">Raise</button>
-                                    <input type="number" ng-model="myBet.bet" value="0" ng-disabled="!myTurn" min="0" max="{{player.tokens}}">
-                                    <button class="btn btn-success" ng-disabled="!myTurn">All-In</button>
-                                    <button class="btn btn-danger" ng-disabled="!myTurn" ng-click="fold()">Fold</button>
+                                    <button class="btn btn-default" ng-disabled="!myTurn || gameOver" ng-click="call()">Call</button>
+                                    <button class="btn btn-warning" ng-disabled="!myTurn || gameOver" ng-click="raise()">Raise</button>
+                                    <input type="number" ng-model="myBet.bet" value="0" ng-disabled="!myTurn || gameOver" min="0" max="{{player.tokens}}">
+                                    <button class="btn btn-success" ng-disabled="!myTurn || gameOver">All-In</button>
+                                    <button class="btn btn-danger" ng-disabled="!myTurn || gameOver" ng-click="fold()">Fold</button>
                                     <input type="checkbox" name="hideCards" ng-model="hideMyCards" checked="false">
                                 </div>
                             </div>

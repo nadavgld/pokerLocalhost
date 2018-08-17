@@ -1,6 +1,8 @@
 var express = require('express')
 var bodyParser = require('body-parser')
 var cors = require('cors')
+var Hand = require('pokersolver').Hand;
+
 
 var app = express()
 var http = require('http').Server(app);
@@ -120,6 +122,7 @@ io.on('connection', function (socket) {
             p.bet = p_bet;
             p.tokens -= p_bet;
             game.amount += p_bet;
+            game.lastToRaise = position;
             game.highest = p_bet;
         }
 
@@ -257,26 +260,90 @@ function nextRound(game) {
         updateGamesPlayers(game)
     } else {
         console.log("calculate winner");
+        var hands = getPlayersHands(game);
+        var winnerHand = Hand.winners(hands);
 
+        var winner = getPlayerByCards(game, winnerHand)
+        winner.tokens += game.amount;
+
+        console.log("Winner is " + winner.username + " with hand of " + winnerHand[0].name)
         game.players.forEach(player => {
             var s = sockets.find(sk => sk.id == player.id)
             if (s) {
-                s.emit('gameOver', {})
+                s.emit('gameOver', {"winner": winner.username})
             }
         })
 
         game.waiting.forEach(player => {
             var s = sockets.find(sk => sk.id == player.id)
             if (s) {
-                s.emit('gameOver', {})
+                s.emit('gameOver', {"winner": winner.username})
             }
         })
 
         updateGamesPlayers(game)
+
+        setTimeout(() => {
+            startGame(game)
+        }, 10 * 1000);
     }
 }
 
+function getPlayerByCards(game, cards) {
+    var winner;
+    game.players.forEach(p => {
+
+        var playerCards = JSON.parse(JSON.stringify(game.tableCards))
+        playerCards = playerCards.concat(p.cards)
+
+        var p_c = [];
+        playerCards.forEach(c => {
+
+            var number = c.number == "10" ? "T" : c.number;
+            var shape = c.symbol.shape.charAt(0).toLowerCase();
+
+            p_c.push(number.concat(shape))
+
+        })
+        var hand = Hand.solve(p_c)
+        
+        if(hand.toString() == cards.toString())
+            winner = p;
+    })
+
+    return winner;
+}
+
+function getPlayersHands(game) {
+    var all_players = []
+
+    game.players.forEach(p => {
+        if (!p.isFolded) {
+            var playerCards = JSON.parse(JSON.stringify(game.tableCards))
+            playerCards = playerCards.concat(p.cards)
+
+            var p_c = [];
+            playerCards.forEach(c => {
+
+                var number = c.number == "10" ? "T" : c.number;
+                var shape = c.symbol.shape.charAt(0).toLowerCase();
+
+                p_c.push(number.concat(shape))
+
+            })
+            var hand = Hand.solve(p_c)
+            all_players.push(hand)
+        }
+    })
+
+    return all_players;
+}
+
 function nextPlayerInRound(game) {
+
+    if (game.round == 4)
+        return -1;
+
     var currentPlayer = parseInt(game.role.turn);
     var currentPlayer = (currentPlayer + 1) % game.players.length;
 

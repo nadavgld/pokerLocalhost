@@ -141,8 +141,10 @@ app.controller('mainController', ['$scope', function ($scope) {
 
             socket.on('gameOver', data => {
                 self.gameOver = true;
-
+            
                 $scope.$apply();
+                
+                alert(data.winner + " just won the game. Congratz")
             })
 
             socket.on('gameHasStarted', data => {
@@ -208,6 +210,9 @@ app.controller('mainController', ['$scope', function ($scope) {
     }
 
     self.login_register = function () {
+        // if (login.username.length == 0 || login.password.length == 0)
+            // return;
+
         socket.emit('login', self.login)
     }
 
@@ -227,14 +232,14 @@ app.controller('mainController', ['$scope', function ($scope) {
         self.myBet.bet = self.tableBet
     }
 
-    self.raise = function(){
+    self.raise = function () {
         var bet = self.myBet.bet;
 
-        if(bet < self.tableBet * 2){
+        if (bet < self.tableBet * 2) {
             alert("Raise must be at least twice the highest bet")
-        }else{
-            
-            if(!bet){
+        } else {
+
+            if (!bet) {
                 alert("Cannot bet more than your tokens")
                 return;
             }
