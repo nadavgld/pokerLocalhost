@@ -64,6 +64,7 @@ app.controller('mainController', ['$scope', function ($scope) {
 
             socket.on('draw', function (data) {
                 self.inGame = true;
+                self._table = []
                 self.gameOver = false;
                 self.isWatcher = false;
                 self.position = data.position;
@@ -143,8 +144,10 @@ app.controller('mainController', ['$scope', function ($scope) {
                 self.gameOver = true;
             
                 $scope.$apply();
-                
-                alert(data.winner + " just won the game. Congratz")
+
+                setTimeout(() => {
+                    alert(data.winner + " just won the game with hand of "+ data.hand +". Congratz, re-draw in few seconds")
+                }, 2000);
             })
 
             socket.on('gameHasStarted', data => {

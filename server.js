@@ -119,9 +119,10 @@ io.on('connection', function (socket) {
             p.tokens -= p_bet
             game.amount += p_bet
         } else if (status == "raise") {
+            p.bet = p.bet ? p.bet : 0
+            p.tokens = p.tokens - p_bet + p.bet;
+            game.amount += p_bet - p.bet;
             p.bet = p_bet;
-            p.tokens -= p_bet;
-            game.amount += p_bet;
             game.lastToRaise = position;
             game.highest = p_bet;
         }
@@ -270,22 +271,23 @@ function nextRound(game) {
         game.players.forEach(player => {
             var s = sockets.find(sk => sk.id == player.id)
             if (s) {
-                s.emit('gameOver', {"winner": winner.username})
+                s.emit('gameOver', { "winner": winner.username, "hand": winnerHand[0].name })
             }
         })
 
         game.waiting.forEach(player => {
             var s = sockets.find(sk => sk.id == player.id)
             if (s) {
-                s.emit('gameOver', {"winner": winner.username})
+                s.emit('gameOver', { "winner": winner.username, "hand": winnerHand[0].name })
             }
         })
 
         updateGamesPlayers(game)
 
         setTimeout(() => {
-            startGame(game)
-        }, 10 * 1000);
+            console.log("new game in 10 seconds")
+            restartGame(game)
+        }, 12 * 1000);
     }
 }
 
@@ -306,8 +308,8 @@ function getPlayerByCards(game, cards) {
 
         })
         var hand = Hand.solve(p_c)
-        
-        if(hand.toString() == cards.toString())
+
+        if (hand.toString() == cards.toString())
             winner = p;
     })
 
@@ -353,18 +355,45 @@ function nextPlayerInRound(game) {
     return currentPlayer;
 }
 
-function startGame(game) {
+function restartGame(game) {
+
+    game.waiting = JSON.parse(JSON.stringify(game.players))
+    game.players = [];
+    game.round = -1;
+    game.deck = Deck()
+
+    game.waiting.forEach(w => {
+        w.cards = []
+        w.bet = 0
+        w.isFolded = false
+
+        var s = sockets.find(so => so.id == w.id)
+        s.emit('joinedGame', game)
+    })
+
+    startGame(game, true)
+}
+
+function startGame(game, restarted) {
+    console.log("new game!")
     var waitingList = JSON.parse(JSON.stringify(game.waiting))
     game.players = waitingList;
     setPlayersToNewGame(game.players)
 
-    game.role = {};
     game.waiting = [];
 
-    var small = Math.floor(Math.random() * game.players.length);
-    game.role.small = small
-    game.role.big = (small + 1) % game.players.length
-    game.role.turn = (game.role.big + 1) % game.players.length
+    if (!restarted) {
+        game.role = {};
+
+        var small = Math.floor(Math.random() * game.players.length);
+        game.role.small = small
+        game.role.big = (small + 1) % game.players.length
+        game.role.turn = (game.role.big + 1) % game.players.length
+    } else {
+        game.role.small = game.role.big
+        game.role.big = (game.role.small + 1) % game.players.length
+        game.role.turn = (game.role.big + 1) % game.players.length
+    }
 
     game.amount = game.small * 3;
     game.highest = game.small * 2;
