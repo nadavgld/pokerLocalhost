@@ -70,6 +70,8 @@ io.on('connection', function (socket) {
             if (!p) {
                 socket.emit('loginError', { msg: "Error has occoured, please refresh" })
                 return;
+            } else if (p.tokens == 0) {
+                socket.emit('loginError', { msg: "can't play, you dont have tokens!" })
             }
             p.gameid = game.id;
             p.isFolded = false;
@@ -80,7 +82,7 @@ io.on('connection', function (socket) {
 
             if (game.round == -1) //not started yet
             {
-                if (game.waiting.length == game.max) {
+                if (game.waiting.length == game.min) {
                     //start A game
                     startGame(game);
                 } else {
@@ -115,9 +117,16 @@ io.on('connection', function (socket) {
             p.isFolded = true;
         } else if (status == "call") {
             var bet = parseInt(game.highest);
+
+            if (game.isAllIn) {
+                game.amount += p.tokens
+                p.tokens = 0
+            } else {
+                p.tokens = p.tokens - bet + p.bet
+                game.amount = game.amount + bet - p.bet
+            }
+
             p.bet = bet;
-            p.tokens -= p_bet
-            game.amount += p_bet
         } else if (status == "raise") {
             p.bet = p.bet ? p.bet : 0
             p.tokens = p.tokens - p_bet + p.bet;
@@ -125,11 +134,20 @@ io.on('connection', function (socket) {
             p.bet = p_bet;
             game.lastToRaise = position;
             game.highest = p_bet;
+        } else if (status == "all-in") {
+            p.bet += p.tokens;
+            game.amount += p.tokens;
+            game.highest = p.tokens;
+            p.tokens = 0;
+            game.lastToRaise = position;
+            game.isAllIn = true;
         }
 
-        var nextTurn = nextPlayerInRound(game)
-        game.role.turn = nextTurn;
-        updateGamesPlayers(game)
+        if (game.round <= 3) {
+            var nextTurn = nextPlayerInRound(game)
+            game.role.turn = nextTurn;
+            updateGamesPlayers(game)
+        }
 
         if (game.players[game.role.turn].bet == game.highest && game.lastToRaise == game.role.turn) {
             nextRound(game)
@@ -357,10 +375,12 @@ function nextPlayerInRound(game) {
 
 function restartGame(game) {
 
-    game.waiting = JSON.parse(JSON.stringify(game.players))
+    game.waiting = game.waiting.concat(JSON.parse(JSON.stringify(game.players)))
     game.players = [];
     game.round = -1;
     game.deck = Deck()
+
+    var socketsToRemove = []
 
     game.waiting.forEach(w => {
         w.cards = []
@@ -368,10 +388,37 @@ function restartGame(game) {
         w.isFolded = false
 
         var s = sockets.find(so => so.id == w.id)
-        s.emit('joinedGame', game)
+
+        if (w.tokens == 0) {
+            s.emit('loginError', { msg: "can't play, you dont have tokens!" })
+            socketsToRemove.push(s)
+        }
+        else
+            s.emit('joinedGame', game)
     })
 
+    socketsToRemove.forEach(s => kickFromGame(s))
+
     startGame(game, true)
+}
+
+function kickFromGame(socket) {
+    var p = players.find(u => u.id == socket.id);
+    var game = games.find(g => g.id == p.gameid);
+
+    if (game && p) {
+        var p_idx = game.players.findIndex(pl => pl.id == p.id);
+        if (p_idx)
+            game.players.splice(p_idx, 1)
+
+        p_idx = game.waiting.findIndex(pl => pl.id == p.id);
+        if (p_idx)
+            game.waiting.splice(p_idx, 1)
+
+        p.gameid = -1
+    }
+
+    socket.emit('moveToLobby', { username: p.username, tokens: p.tokens })
 }
 
 function startGame(game, restarted) {
@@ -495,7 +542,7 @@ function clearPlayerFromGame(game, player_id) {
             game.waiting.splice(pl, 1)
     } catch (e) { }
 
-    if (game.players.length == 0) {
+    if (game.players.length == 0 && game.waiting.length == 0) {
         var g_idx = games.findIndex(g => g.id == game.id);
         games.splice(g_idx, 1)
     } else
@@ -513,12 +560,15 @@ function createGame(socket, gameInfo) {
         "players": [],
         "waiting": [],
         "round": -1,
-        "deck": Deck()
+        "deck": Deck(),
+        "isAllIn": false
     };
 
     var p = players.find(u => u.id == socket.id);
-    p.gameid = _id;
-    newGame.waiting.push(p)
+    if (p) {
+        p.gameid = _id;
+        newGame.waiting.push(p)
+    }
 
     games.push(newGame)
 

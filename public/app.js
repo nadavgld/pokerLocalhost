@@ -43,6 +43,8 @@ app.controller('mainController', ['$scope', function ($scope) {
             socket.on('moveToLobby', (player) => {
                 console.log(player);
                 self.isLoggedIn = true;
+                self.inGame = false;
+                self.isWatcher = false;
                 self.player = player;
 
                 self.$apply()
@@ -142,11 +144,11 @@ app.controller('mainController', ['$scope', function ($scope) {
 
             socket.on('gameOver', data => {
                 self.gameOver = true;
-            
+
                 $scope.$apply();
 
                 setTimeout(() => {
-                    alert(data.winner + " just won the game with hand of "+ data.hand +". Congratz, re-draw in few seconds")
+                    alert(data.winner + " just won the game with hand of " + data.hand + ". Congratz, re-draw in few seconds")
                 }, 2000);
             })
 
@@ -204,17 +206,17 @@ app.controller('mainController', ['$scope', function ($scope) {
     }
 
     self.createGame = function () {
-        var max = prompt('max players? min 3..', 3)
+        var max = prompt('max players? min 2..', 2)
 
-        while (max < 3)
-            max = prompt('max players? min 3..', 3)
+        while (max < 2)
+            max = prompt('max players? min 2..', 2)
 
         socket.emit('create', { "min": 2, "max": parseInt(max), "small": 2 })
     }
 
     self.login_register = function () {
         // if (login.username.length == 0 || login.password.length == 0)
-            // return;
+        // return;
 
         socket.emit('login', self.login)
     }
@@ -228,11 +230,11 @@ app.controller('mainController', ['$scope', function ($scope) {
 
     self.call = function () {
         self.myBet.status = "call";
-        self.myBet.bet = self.tableBet - self.myBet.bet
-
-        socket.emit('makeAMove', self.myBet)
-
+        // self.myBet.bet = self.tableBet - self.myBet.bet
         self.myBet.bet = self.tableBet
+
+        socket.emit('makeAMove', { status: "call", bet: self.tableBet })
+
     }
 
     self.raise = function () {
@@ -246,9 +248,16 @@ app.controller('mainController', ['$scope', function ($scope) {
                 alert("Cannot bet more than your tokens")
                 return;
             }
+            // self.myBet.status = "raise"
             self.myBet.status = self.myBet.bet == self.player.tokens ? "all-in" : "raise"
             socket.emit('makeAMove', self.myBet)
         }
+    }
+
+    self.allIn = function () {
+        self.myBet.status = "all-in";
+        self.myBet.bet = self.player.tokens
+        socket.emit('makeAMove', self.myBet)
     }
 
     self.splitToHalf = function (others, first) {
@@ -282,5 +291,12 @@ app.controller('mainController', ['$scope', function ($scope) {
             role += " - Playing"
 
         return role
+    }
+
+    self.isPlaying = function (other) {
+        if (other.position == self.role.turn)
+            return "playing"
+
+        return "notPlaying"
     }
 }])

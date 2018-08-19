@@ -44,8 +44,10 @@
                     </div>
                 </div>
                 <div class="middle-center new-game-buttons" ng-if="!inGame">
-                    <button class="btn btn-default" ng-if="!inGame" ng-disabled="waiting.isWaiting" ng-click="joinGame(); waiting.isWaiting = true"> Join Game </button>
-                    <button class="btn btn-default" ng-if="!inGame" ng-disabled="waiting.isWaiting" ng-click="createGame(); waiting.isWaiting = true"> Create Game </button>
+                    <button class="btn btn-default" ng-if="!inGame" ng-disabled="waiting.isWaiting" ng-click="joinGame(); waiting.isWaiting = true">
+                    Join Game </button>
+                    <button class="btn btn-default" ng-if="!inGame" ng-disabled="waiting.isWaiting" ng-click="createGame(); waiting.isWaiting = true">
+                    Create Game </button>
 
                     <div ng-if="waiting.isWaiting">
                         Game created! on waiting list: {{waiting.players}}
@@ -59,7 +61,7 @@
                                     <button class="btn btn-default" ng-disabled="!myTurn || gameOver" ng-click="call()">Call</button>
                                     <button class="btn btn-warning" ng-disabled="!myTurn || gameOver" ng-click="raise()">Raise</button>
                                     <input type="number" ng-model="myBet.bet" value="0" ng-disabled="!myTurn || gameOver" min="0" max="{{player.tokens}}">
-                                    <button class="btn btn-success" ng-disabled="!myTurn || gameOver">All-In</button>
+                                    <button class="btn btn-success" ng-disabled="!myTurn || gameOver" ng-click="allIn()">All-In</button>
                                     <button class="btn btn-danger" ng-disabled="!myTurn || gameOver" ng-click="fold()">Fold</button>
                                     <input type="checkbox" name="hideCards" ng-model="hideMyCards" checked="false">
                                 </div>
@@ -76,23 +78,23 @@
                             ({{watchers}} users are watching this game)
                             <br> Total table tokens: {{table_tokens}}
                             <div class="d-flex" style="justify-content: space-around;">
-                                <div class="col-md-3" ng-repeat="other in splitToHalf(others,true)">
+                                <div class="col-md-3" ng-repeat="other in splitToHalf(others,true)" ng-class="isPlaying(other)">
                                     <strong>{{other.username}}</strong>
                                     <span>{{hasRole(other)}}</span>
                                     <br> Bet: {{other.bet}} | Tokens: {{other.tokens}}
                                     <div ng-if="!other.isFolded">
-                                        <div class="d-flex" ng-if="other.username != player.username && !gameOver">
+                                        <div class="d-flex cards" ng-if="other.username != player.username && !gameOver">
                                             <div class="game-card flippedCard"></div>
                                             <div class="game-card flippedCard"></div>
                                         </div>
-                                        <div class="d-flex" ng-if="other.username != player.username && gameOver">
+                                        <div class="d-flex cards" ng-if="other.username != player.username && gameOver">
                                             <div class="game-card" ng-repeat="card in other.cards">
                                                 <div class="card-symbol upper-symbol" ng-class="cardColor(card.symbol.color)"> {{card.symbol.icon}} </div>
                                                 <div class="card-number" ng-class="cardColor(card.symbol.color)"> {{card.number}} </div>
                                                 <div class="card-symbol lower-symbol" ng-class="cardColor(card.symbol.color)"> {{card.symbol.icon}} </div>
                                             </div>
                                         </div>
-                                        <div class="d-flex" ng-if="other.username == player.username">
+                                        <div class="d-flex cards" ng-if="other.username == player.username">
                                             <div class="game-card" ng-repeat="card in _cards" ng-if="!hideMyCards">
                                                 <div class="card-symbol upper-symbol" ng-class="cardColor(card.symbol.color)"> {{card.symbol.icon}} </div>
                                                 <div class="card-number" ng-class="cardColor(card.symbol.color)"> {{card.number}} </div>
@@ -101,7 +103,7 @@
                                         </div>
                                     </div>
                                     <div ng-if="other.isFolded">
-                                        <div class="d-flex">
+                                        <div class="d-flex cards">
                                             <div class="game-card"></div>
                                             <div class="game-card"></div>
                                         </div>
@@ -122,23 +124,23 @@
 
                         <div class="col-md-12 mt-3">
                             <div class="d-flex" style="justify-content: space-around;">
-                                <div class="col-md-3" ng-repeat="other in splitToHalf(others,false)">
+                                <div class="col-md-3" ng-repeat="other in splitToHalf(others,false)" ng-class="isPlaying(other)">
                                     <strong>{{other.username}}</strong>
                                     <span>{{hasRole(other)}}</span>
                                     <br> Bet: {{other.bet}} | Tokens: {{other.tokens}}
                                     <div ng-if="!other.isFolded">
-                                        <div class="d-flex" ng-if="other.username != player.username && !gameOver">
+                                        <div class="d-flex cards" ng-if="other.username != player.username && !gameOver">
                                             <div class="game-card flippedCard"></div>
                                             <div class="game-card flippedCard"></div>
                                         </div>
-                                        <div class="d-flex" ng-if="other.username != player.username && gameOver">
+                                        <div class="d-flex cards" ng-if="other.username != player.username && gameOver">
                                             <div class="game-card" ng-repeat="card in other.cards">
                                                 <div class="card-symbol upper-symbol" ng-class="cardColor(card.symbol.color)"> {{card.symbol.icon}} </div>
                                                 <div class="card-number" ng-class="cardColor(card.symbol.color)"> {{card.number}} </div>
                                                 <div class="card-symbol lower-symbol" ng-class="cardColor(card.symbol.color)"> {{card.symbol.icon}} </div>
                                             </div>
                                         </div>
-                                        <div class="d-flex" ng-if="other.username == player.username">
+                                        <div class="d-flex cards" ng-if="other.username == player.username">
                                             <div class="game-card" ng-repeat="card in _cards" ng-if="!hideMyCards">
                                                 <div class="card-symbol upper-symbol" ng-class="cardColor(card.symbol.color)"> {{card.symbol.icon}} </div>
                                                 <div class="card-number" ng-class="cardColor(card.symbol.color)"> {{card.number}} </div>
@@ -147,7 +149,7 @@
                                         </div>
                                     </div>
                                     <div ng-if="other.isFolded">
-                                        <div class="d-flex">
+                                        <div class="d-flex cards">
                                             <div class="game-card"></div>
                                             <div class="game-card"></div>
                                         </div>
