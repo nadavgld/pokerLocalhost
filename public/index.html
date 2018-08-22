@@ -40,14 +40,14 @@
                 <div class="row d-flex">
                     <i class="fas fa-user mt-1"></i>
                     <div class="ml-2">
-                        {{ player.username }} | Tokens: {{player.tokens}}
+                        {{ player.username }} | Tokens: <span id="playerTokens">{{player.tokens}}</span>
                     </div>
                 </div>
                 <div class="middle-center new-game-buttons" ng-if="!inGame">
                     <button class="btn btn-default" ng-if="!inGame" ng-disabled="waiting.isWaiting" ng-click="joinGame(); waiting.isWaiting = true">
-                    Join Game </button>
+                        Join Game </button>
                     <button class="btn btn-default" ng-if="!inGame" ng-disabled="waiting.isWaiting" ng-click="createGame(); waiting.isWaiting = true">
-                    Create Game </button>
+                        Create Game </button>
 
                     <div ng-if="waiting.isWaiting">
                         Game created! on waiting list: {{waiting.players}}
@@ -58,7 +58,7 @@
                         <div class="col-md-12 mt-3">
                             <div class="d-block">
                                 <div class="d-flex playerButtons">
-                                    <button class="btn btn-default" ng-disabled="!myTurn || gameOver" ng-click="call()">Call</button>
+                                    <button class="btn btn-default" ng-disabled="!myTurn || gameOver" ng-click="call()">{{canCall()}}</button>
                                     <button class="btn btn-warning" ng-disabled="!myTurn || gameOver" ng-click="raise()">Raise</button>
                                     <input type="number" ng-model="myBet.bet" value="0" ng-disabled="!myTurn || gameOver" min="0" max="{{player.tokens}}">
                                     <button class="btn btn-success" ng-disabled="!myTurn || gameOver" ng-click="allIn()">All-In</button>
@@ -89,16 +89,22 @@
                                         </div>
                                         <div class="d-flex cards" ng-if="other.username != player.username && gameOver">
                                             <div class="game-card" ng-repeat="card in other.cards">
-                                                <div class="card-symbol upper-symbol" ng-class="cardColor(card.symbol.color)"> {{card.symbol.icon}} </div>
-                                                <div class="card-number" ng-class="cardColor(card.symbol.color)"> {{card.number}} </div>
-                                                <div class="card-symbol lower-symbol" ng-class="cardColor(card.symbol.color)"> {{card.symbol.icon}} </div>
+                                                <div class="card-symbol upper-symbol" ng-class="cardColor(card.symbol.color)"> {{card.symbol.icon}}
+                                                </div>
+                                                <div class="card-number" ng-class="cardColor(card.symbol.color)"> {{card.number}}
+                                                </div>
+                                                <div class="card-symbol lower-symbol" ng-class="cardColor(card.symbol.color)"> {{card.symbol.icon}}
+                                                </div>
                                             </div>
                                         </div>
                                         <div class="d-flex cards" ng-if="other.username == player.username">
                                             <div class="game-card" ng-repeat="card in _cards" ng-if="!hideMyCards">
-                                                <div class="card-symbol upper-symbol" ng-class="cardColor(card.symbol.color)"> {{card.symbol.icon}} </div>
-                                                <div class="card-number" ng-class="cardColor(card.symbol.color)"> {{card.number}} </div>
-                                                <div class="card-symbol lower-symbol" ng-class="cardColor(card.symbol.color)"> {{card.symbol.icon}} </div>
+                                                <div class="card-symbol upper-symbol" ng-class="cardColor(card.symbol.color)"> {{card.symbol.icon}}
+                                                </div>
+                                                <div class="card-number" ng-class="cardColor(card.symbol.color)"> {{card.number}}
+                                                </div>
+                                                <div class="card-symbol lower-symbol" ng-class="cardColor(card.symbol.color)"> {{card.symbol.icon}}
+                                                </div>
                                             </div>
                                         </div>
                                     </div>
@@ -115,9 +121,11 @@
                         <div class="col-md-12 mt-3 gameTable">
                             <div class="d-flex game-table">
                                 <div class="game-card" ng-repeat="card in _table">
-                                    <div class="card-symbol upper-symbol" ng-class="cardColor(card.symbol.color)"> {{card.symbol.icon}} </div>
+                                    <div class="card-symbol upper-symbol" ng-class="cardColor(card.symbol.color)"> {{card.symbol.icon}}
+                                    </div>
                                     <div class="card-number" ng-class="cardColor(card.symbol.color)"> {{card.number}} </div>
-                                    <div class="card-symbol lower-symbol" ng-class="cardColor(card.symbol.color)"> {{card.symbol.icon}} </div>
+                                    <div class="card-symbol lower-symbol" ng-class="cardColor(card.symbol.color)"> {{card.symbol.icon}}
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -135,16 +143,22 @@
                                         </div>
                                         <div class="d-flex cards" ng-if="other.username != player.username && gameOver">
                                             <div class="game-card" ng-repeat="card in other.cards">
-                                                <div class="card-symbol upper-symbol" ng-class="cardColor(card.symbol.color)"> {{card.symbol.icon}} </div>
-                                                <div class="card-number" ng-class="cardColor(card.symbol.color)"> {{card.number}} </div>
-                                                <div class="card-symbol lower-symbol" ng-class="cardColor(card.symbol.color)"> {{card.symbol.icon}} </div>
+                                                <div class="card-symbol upper-symbol" ng-class="cardColor(card.symbol.color)"> {{card.symbol.icon}}
+                                                </div>
+                                                <div class="card-number" ng-class="cardColor(card.symbol.color)"> {{card.number}}
+                                                </div>
+                                                <div class="card-symbol lower-symbol" ng-class="cardColor(card.symbol.color)"> {{card.symbol.icon}}
+                                                </div>
                                             </div>
                                         </div>
                                         <div class="d-flex cards" ng-if="other.username == player.username">
                                             <div class="game-card" ng-repeat="card in _cards" ng-if="!hideMyCards">
-                                                <div class="card-symbol upper-symbol" ng-class="cardColor(card.symbol.color)"> {{card.symbol.icon}} </div>
-                                                <div class="card-number" ng-class="cardColor(card.symbol.color)"> {{card.number}} </div>
-                                                <div class="card-symbol lower-symbol" ng-class="cardColor(card.symbol.color)"> {{card.symbol.icon}} </div>
+                                                <div class="card-symbol upper-symbol" ng-class="cardColor(card.symbol.color)"> {{card.symbol.icon}}
+                                                </div>
+                                                <div class="card-number" ng-class="cardColor(card.symbol.color)"> {{card.number}}
+                                                </div>
+                                                <div class="card-symbol lower-symbol" ng-class="cardColor(card.symbol.color)"> {{card.symbol.icon}}
+                                                </div>
                                             </div>
                                         </div>
                                     </div>

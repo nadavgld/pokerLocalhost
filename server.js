@@ -106,52 +106,97 @@ io.on('connection', function (socket) {
 
     socket.on('makeAMove', function (move) {
         var p = players.find(u => u.id == socket.id);
-        var game = games.find(g => g.id == p.gameid);
-        var position = game.players.findIndex(u => u.id == socket.id);
-        p = game.players[position]
 
-        var status = move.status;
-        var p_bet = parseInt(move.bet)
+        try {
+            var game = games.find(g => g.id == p.gameid);
+            var position = game.players.findIndex(u => u.id == socket.id);
+            p = game.players[position]
 
-        if (status == "fold") {
-            p.isFolded = true;
-        } else if (status == "call") {
-            var bet = parseInt(game.highest);
+            var status = move.status;
+            var p_bet = parseInt(move.bet)
 
-            if (game.isAllIn) {
-                game.amount += p.tokens
-                p.tokens = 0
-            } else {
+            if (status == "fold") {
+                p.isFolded = true;
+
+                var amountOfFolded = game.players.filter(pl => !pl.isFolded).length;
+
+                if (amountOfFolded + 1 == game.players.length) {
+                    //all folded but one player
+                    while (game.role.turn != -1) {
+                        nextRound(game)
+                    }
+
+                    return;
+                }
+            } else if (status == "call") {
+                var bet = parseInt(game.highest);
+
+                // if (game.isAllIn) {
+                //     game.amount += p.tokens
+                //     p.tokens = 0
+                // } else {
                 p.tokens = p.tokens - bet + p.bet
                 game.amount = game.amount + bet - p.bet
+                // }
+
+                p.bet = bet;
+
+                var tokensLess = game.players.filter(pl => pl.tokens == 0).length
+
+                if (tokensLess + 1 >= game.players.length) {
+                    //all has no tokens but one player
+                    while (game.role.turn != -1) {
+                        nextRound(game)
+                    }
+
+                    return;
+                }
+            } else if (status == "raise") {
+                p.bet = p.bet ? p.bet : 0
+                p.tokens = p.tokens - p_bet + p.bet;
+                game.amount += p_bet - p.bet;
+                p.bet = p_bet;
+                game.lastToRaise = position;
+                game.highest = p_bet;
+            } else if (status == "all-in") {
+                p.bet += p.tokens;
+                game.amount += p.tokens;
+                game.highest = p.bet;
+
+                if (game.players[game.lastToRaise].bet != p.bet)
+                    game.lastToRaise = position;
+
+                p.tokens = 0;
+                game.isAllIn = true;
             }
 
-            p.bet = bet;
-        } else if (status == "raise") {
-            p.bet = p.bet ? p.bet : 0
-            p.tokens = p.tokens - p_bet + p.bet;
-            game.amount += p_bet - p.bet;
-            p.bet = p_bet;
-            game.lastToRaise = position;
-            game.highest = p_bet;
-        } else if (status == "all-in") {
-            p.bet += p.tokens;
-            game.amount += p.tokens;
-            game.highest = p.tokens;
-            p.tokens = 0;
-            game.lastToRaise = position;
-            game.isAllIn = true;
-        }
+            if (game.players.length == 1)
+                try {
+                    var s = sockets.find(so => so.id == game.players[0].id) || sockets.find(so => so.id == game.waiting[0].id)
+                    s.emit('moveToLobby', { username: p.username, tokens: p.tokens })
+                } catch (e) { }
 
-        if (game.round <= 3) {
-            var nextTurn = nextPlayerInRound(game)
-            game.role.turn = nextTurn;
-            updateGamesPlayers(game)
-        }
+            if (game.round <= 3) {
+                var nextTurn = nextPlayerInRound(game)
+                game.role.turn = nextTurn;
+                updateGamesPlayers(game)
+            }
 
-        if (game.players[game.role.turn].bet == game.highest && game.lastToRaise == game.role.turn) {
-            nextRound(game)
-        }
+            if (game.players[game.role.turn].bet == game.highest && game.lastToRaise == game.role.turn) {
+                var tokensLess = game.players.filter(pl => pl.tokens == 0).length
+
+                if (tokensLess + 1 >= game.players.length) {
+                    //all has no tokens but one player
+                    while (game.role.turn != -1) {
+                        nextRound(game)
+                    }
+
+                    return;
+                }
+
+                nextRound(game)
+            }
+        } catch (e) { console.log(e); }
     })
 });
 
@@ -278,9 +323,10 @@ function nextRound(game) {
         game.players.forEach(p => p.bet = 0);
         updateGamesPlayers(game)
     } else {
-        console.log("calculate winner");
         var hands = getPlayersHands(game);
         var winnerHand = Hand.winners(hands);
+
+        game.role.turn = -1;
 
         var winner = getPlayerByCards(game, winnerHand)
         winner.tokens += game.amount;
@@ -360,14 +406,13 @@ function getPlayersHands(game) {
 }
 
 function nextPlayerInRound(game) {
-
     if (game.round == 4)
         return -1;
 
     var currentPlayer = parseInt(game.role.turn);
     var currentPlayer = (currentPlayer + 1) % game.players.length;
 
-    while (game.players[currentPlayer].isFolded)
+    while (game.players[currentPlayer].isFolded && game.players[currentPlayer].tokens == 0)
         currentPlayer = (currentPlayer + 1) % game.players.length;
 
     return currentPlayer;
@@ -399,7 +444,14 @@ function restartGame(game) {
 
     socketsToRemove.forEach(s => kickFromGame(s))
 
-    startGame(game, true)
+    if (game.waiting.length > 1)
+        startGame(game, true)
+    else {
+        try {
+            var s = sockets.find(so => so.id == game.waiting[0].id)
+            s.emit('moveToLobby', { username: p.username, tokens: p.tokens })
+        } catch (e) { }
+    }
 }
 
 function kickFromGame(socket) {
@@ -437,6 +489,8 @@ function startGame(game, restarted) {
         game.role.big = (small + 1) % game.players.length
         game.role.turn = (game.role.big + 1) % game.players.length
     } else {
+        game.role = {};
+
         game.role.small = game.role.big
         game.role.big = (game.role.small + 1) % game.players.length
         game.role.turn = (game.role.big + 1) % game.players.length
@@ -459,6 +513,7 @@ function startGame(game, restarted) {
     })
 
     game.round = 0;
+    updateGamesPlayers(game)
 }
 
 function setPlayersToNewGame(players) {
@@ -468,39 +523,42 @@ function setPlayersToNewGame(players) {
 function initDraw(socket) {
     var p = players.find(u => u.id == socket.id);
     var game = games.find(g => g.id == p.gameid);
-    var position = game.players.findIndex(u => u.id == socket.id);
-    p = game.players[position]
-    p.isFolded = false;
+    try {
 
-    var { deck, cards } = drawCards(game.deck, 2);
-    p.cards = cards;
-    game.deck = deck;
+        var position = game.players.findIndex(u => u.id == socket.id);
+        p = game.players[position]
+        p.isFolded = false;
 
-    if (position == game.role.small) {
-        p.bet = game.small
-        p.tokens -= game.small
+        var { deck, cards } = drawCards(game.deck, 2);
+        p.cards = cards;
+        game.deck = deck;
 
-    } else if (position == game.role.big) {
-        p.bet = (game.small * 2)
-        p.tokens -= (game.small * 2)
-    }
+        if (position == game.role.small) {
+            p.bet = game.small
+            p.tokens -= game.small
 
-    var { others, watchers } = getPlayersInGame(game, socket.id);
-    socket.emit('draw', {
-        "cards": cards,
-        "position": position,
-        "totalCards": game.deck.length,
-        "others": others,
-        "watchers": watchers.length,
-        "small": game.small,
-        "highest": game.small * 2,
-        "role": {
-            "small": game.role.small,
-            "big": game.role.big,
-            "turn": game.role.turn
-        },
-        "amount": game.amount
-    })
+        } else if (position == game.role.big) {
+            p.bet = (game.small * 2)
+            p.tokens -= (game.small * 2)
+        }
+
+        var { others, watchers } = getPlayersInGame(game, socket.id);
+        socket.emit('draw', {
+            "cards": cards,
+            "position": position,
+            "totalCards": game.deck.length,
+            "others": others,
+            "watchers": watchers.length,
+            "small": game.small,
+            "highest": game.small * 2,
+            "role": {
+                "small": game.role.small,
+                "big": game.role.big,
+                "turn": game.role.turn
+            },
+            "amount": game.amount
+        })
+    } catch (e) { }
 }
 
 function getPlayersInGame(game, me) {
@@ -540,13 +598,13 @@ function clearPlayerFromGame(game, player_id) {
         pl = game.waiting.findIndex(p => p.id == player_id);
         if (pl > -1)
             game.waiting.splice(pl, 1)
-    } catch (e) { }
 
-    if (game.players.length == 0 && game.waiting.length == 0) {
-        var g_idx = games.findIndex(g => g.id == game.id);
-        games.splice(g_idx, 1)
-    } else
-        updateGamesPlayers(game)
+        if (game.players.length == 0 && game.waiting.length == 0) {
+            var g_idx = games.findIndex(g => g.id == game.id);
+            games.splice(g_idx, 1)
+        } else
+            updateGamesPlayers(game)
+    } catch (e) { }
 }
 
 function createGame(socket, gameInfo) {
@@ -567,6 +625,8 @@ function createGame(socket, gameInfo) {
     var p = players.find(u => u.id == socket.id);
     if (p) {
         p.gameid = _id;
+        p.isFolded = false;
+
         newGame.waiting.push(p)
     }
 

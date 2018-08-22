@@ -41,13 +41,7 @@ app.controller('mainController', ['$scope', function ($scope) {
         setTimeout(() => {
 
             socket.on('moveToLobby', (player) => {
-                console.log(player);
-                self.isLoggedIn = true;
-                self.inGame = false;
-                self.isWatcher = false;
-                self.player = player;
-
-                self.$apply()
+                self.moveToLobby(player)
             })
 
             socket.on('loginError', (err) => {
@@ -111,11 +105,18 @@ app.controller('mainController', ['$scope', function ($scope) {
 
                 self.others.forEach(p => {
                     if (p.username == self.player.username) {
-                        self.player.tokens = p.tokens
+                        self.animateTokens(p.tokens, self.player.tokens)
+
+                        setTimeout(() => {
+                            self.player.tokens = p.tokens
+                        }, 4000);
                     }
                 });
 
                 $scope.$apply();
+
+                if (self.others.length == 1)
+                    self.moveToLobby(self.player)
             })
 
             socket.on('updateTurn', (game) => {
@@ -144,6 +145,8 @@ app.controller('mainController', ['$scope', function ($scope) {
 
             socket.on('gameOver', data => {
                 self.gameOver = true;
+                self.role.turn = -1;
+                self.myTurn = false;
 
                 $scope.$apply();
 
@@ -183,10 +186,21 @@ app.controller('mainController', ['$scope', function ($scope) {
     self.updateTokens = function () {
         for (var i = 0; i < self.others.length; i++) {
             if (self.others[i].username == self.player.username) {
+                self.animateTokens(self.others[i].tokens, self.player.tokens)
                 self.player.tokens = self.others[i].tokens;
                 return;
             }
         }
+    }
+
+    self.moveToLobby = function (player) {
+        console.log(player);
+        self.isLoggedIn = true;
+        self.inGame = false;
+        self.isWatcher = false;
+        self.player = player;
+
+        self.$apply()
     }
 
     self.joinGame = function () {
@@ -299,4 +313,38 @@ app.controller('mainController', ['$scope', function ($scope) {
 
         return "notPlaying"
     }
+
+    var intr;
+    var mls = 1;
+    self.animateTokens = function (amount, tokens) {
+        clearInterval(intr);
+        mls = Math.ceil(Math.abs(tokens - amount) / 300)
+
+        intr = setInterval(() => {
+            if (tokens <= amount) {
+                if (tokens + mls <= amount)
+                    tokens += mls
+                else {
+                    tokens = amount;
+                    clearInterval(intr)
+                }
+            } else {
+                if (tokens - mls >= amount)
+                    tokens -= mls
+                else {
+                    tokens = amount;
+                    clearInterval(intr)
+                }
+            }
+            $("#playerTokens").text(tokens)
+        }, 1)
+    }
+
+    self.canCall = function () {
+        if (self.tableBet == 0)
+            return "Check"
+
+        return "Call"
+    }
+
 }])
