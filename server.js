@@ -72,6 +72,7 @@ io.on('connection', function (socket) {
                 return;
             } else if (p.tokens == 0) {
                 socket.emit('loginError', { msg: "can't play, you dont have tokens!" })
+                return;
             }
             p.gameid = game.id;
             p.isFolded = false;
@@ -97,6 +98,16 @@ io.on('connection', function (socket) {
     })
 
     socket.on('create', (gameInfo) => {
+        var p = players.find(u => u.id == socket.id);
+
+        if (!p) {
+            socket.emit('loginError', { msg: "Error has occoured, please refresh" })
+            return;
+        } else if (p.tokens == 0) {
+            socket.emit('loginError', { msg: "can't play, you dont have tokens!" })
+            return;
+        }
+
         createGame(socket, gameInfo)
     })
 
@@ -131,13 +142,12 @@ io.on('connection', function (socket) {
             } else if (status == "call") {
                 var bet = parseInt(game.highest);
 
-                // if (game.isAllIn) {
-                //     game.amount += p.tokens
-                //     p.tokens = 0
-                // } else {
+                if (p.tokens - bet + p.bet < 0) {
+                    socket.emit('cantCall');
+                    return;
+                }
                 p.tokens = p.tokens - bet + p.bet
                 game.amount = game.amount + bet - p.bet
-                // }
 
                 p.bet = bet;
 
@@ -161,18 +171,38 @@ io.on('connection', function (socket) {
             } else if (status == "all-in") {
                 p.bet += p.tokens;
                 game.amount += p.tokens;
-                game.highest = p.bet;
 
-                if (game.players[game.lastToRaise].bet != p.bet)
+                if (game.players[game.lastToRaise].bet != p.bet) {
+                    game.highest = p.bet;
                     game.lastToRaise = position;
+                    game.isAllIn = true;
+
+                    game.pots.push({
+                        amount: p.bet,
+                        owner: p.id,
+                        players: [
+                            p.id
+                        ]
+                    })
+                }
 
                 p.tokens = 0;
-                game.isAllIn = true;
             }
 
             if (game.players.length == 1)
                 try {
                     var s = sockets.find(so => so.id == game.players[0].id) || sockets.find(so => so.id == game.waiting[0].id)
+
+                    p.gameid = -1;
+                    p.bet = 0;
+
+                    updateServersPlayers(p)
+
+                    game.waiting = []
+                    game.players = []
+
+                    updateServersGames(game)
+
                     s.emit('moveToLobby', { username: p.username, tokens: p.tokens })
                 } catch (e) { }
 
@@ -197,6 +227,31 @@ io.on('connection', function (socket) {
                 nextRound(game)
             }
         } catch (e) { console.log(e); }
+    })
+
+    socket.on('quitGame', () => {
+        var p = players.find(u => u.id == socket.id)
+        var game = games.find(g => g.id == p.gameid)
+
+        if (p && game) {
+            var position = game.players.findIndex(u => u.id == p.id);
+
+            if (position == game.role.turn) {
+                clearPlayerFromGame(game, p.id)
+
+                var nextTurn = nextPlayerInRound(game)
+                game.role.turn = nextTurn;
+            } else
+                clearPlayerFromGame(game, p.id)
+
+
+            p.gameid = -1;
+
+            removeEmptyGames()
+            updateGamesPlayers(game)
+
+            socket.emit('moveToLobby', { username: p.username, tokens: p.tokens })
+        }
     })
 });
 
@@ -225,10 +280,19 @@ function removeSocket(id) {
     if (p) {
         if (p.gameid != -1) {
             var idx = games.findIndex(g => g.id == p.gameid);
+            var position = games[idx].players.findIndex(u => u.id == p.id);
+
+            if (position == games[idx].role.turn) {
+                var nextTurn = nextPlayerInRound(games[idx])
+                games[idx].role.turn = nextTurn;
+                updateGamesPlayers(games[idx])
+            }
             clearPlayerFromGame(games[idx], p.id)
         }
 
         p.id = -1;
+
+        updateServersPlayers(p)
     }
 }
 
@@ -239,9 +303,9 @@ function updateGamesPlayers(game) {
 
     game.players.forEach(player => {
         var s = sockets.find(sk => sk.id == player.id)
-        var { others, watchers } = getPlayersInGame(game, s.id);
 
         if (s) {
+            var { others, watchers } = getPlayersInGame(game, s.id);
             s.emit('updateWatchers', game.waiting.length)
             s.emit('updatePlayers', others)
 
@@ -351,7 +415,7 @@ function nextRound(game) {
         setTimeout(() => {
             console.log("new game in 10 seconds")
             restartGame(game)
-        }, 12 * 1000);
+        }, 10 * 1000);
     }
 }
 
@@ -435,6 +499,8 @@ function restartGame(game) {
         var s = sockets.find(so => so.id == w.id)
 
         if (w.tokens == 0) {
+
+            updateServersPlayers(w)
             s.emit('loginError', { msg: "can't play, you dont have tokens!" })
             socketsToRemove.push(s)
         }
@@ -445,13 +511,50 @@ function restartGame(game) {
     socketsToRemove.forEach(s => kickFromGame(s))
 
     if (game.waiting.length > 1)
-        startGame(game, true)
+        setTimeout(() => {
+            startGame(game, true)
+        }, 500);
     else {
         try {
             var s = sockets.find(so => so.id == game.waiting[0].id)
+            var p = game.waiting[0]
+
+            p.gameid = -1
+
+            updateServersPlayers(p)
+
+            game.waiting = []
+            game.players = []
+
+            updateServersGames(game)
+
             s.emit('moveToLobby', { username: p.username, tokens: p.tokens })
-        } catch (e) { }
+        } catch (e) { console.log(e); }
     }
+
+    removeEmptyGames()
+}
+
+function updateServersPlayers(p) {
+    var player = players.find(pl => pl.id == p.id)
+    player = p
+}
+
+function updateServersGames(g) {
+    var game = players.find(gl => gl.id == g.id)
+    game = g
+}
+
+function removeEmptyGames() {
+    var gamesToRemove = []
+    games.forEach(g => {
+        if (g.players.length + g.waiting.length == 0) {
+            gamesToRemove.push(g.id)
+        }
+    })
+
+    console.log("g " + gamesToRemove.length + " games");
+    gamesToRemove.forEach(gid => games.splice(gid, 1))
 }
 
 function kickFromGame(socket) {
@@ -459,18 +562,17 @@ function kickFromGame(socket) {
     var game = games.find(g => g.id == p.gameid);
 
     if (game && p) {
-        var p_idx = game.players.findIndex(pl => pl.id == p.id);
-        if (p_idx)
-            game.players.splice(p_idx, 1)
-
-        p_idx = game.waiting.findIndex(pl => pl.id == p.id);
+        var p_idx = game.waiting.findIndex(pl => pl.id == p.id);
         if (p_idx)
             game.waiting.splice(p_idx, 1)
 
         p.gameid = -1
-    }
 
-    socket.emit('moveToLobby', { username: p.username, tokens: p.tokens })
+        updateServersPlayers(p)
+        updateServersGames(game)
+
+        socket.emit('moveToLobby', { username: p.username, tokens: p.tokens })
+    }
 }
 
 function startGame(game, restarted) {
@@ -480,6 +582,8 @@ function startGame(game, restarted) {
     setPlayersToNewGame(game.players)
 
     game.waiting = [];
+    game.pots = [];
+    game.isAllIn = false;
 
     if (!restarted) {
         game.role = {};
@@ -489,7 +593,6 @@ function startGame(game, restarted) {
         game.role.big = (small + 1) % game.players.length
         game.role.turn = (game.role.big + 1) % game.players.length
     } else {
-        game.role = {};
 
         game.role.small = game.role.big
         game.role.big = (game.role.small + 1) % game.players.length
@@ -605,6 +708,8 @@ function clearPlayerFromGame(game, player_id) {
         } else
             updateGamesPlayers(game)
     } catch (e) { }
+
+    updateServersGames(game)
 }
 
 function createGame(socket, gameInfo) {
@@ -690,6 +795,9 @@ function drawCards(deck, number) {
 }
 
 function findFreeGame() {
+
+    removeEmptyGames()
+
     for (var i = 0; i < games.length; i++) {
         if (games[i].players.length + games[i].waiting.length < games[i].max && games[i].round == -1)
             return games[i];

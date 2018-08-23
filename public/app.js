@@ -45,11 +45,21 @@ app.controller('mainController', ['$scope', function ($scope) {
             })
 
             socket.on('loginError', (err) => {
-                console.log(err.msg);
+                self.inGame = false;
+                self.isWatcher = false;
+                self.waiting.isWaiting = false;
+                self.$apply()
+                
+                alert(err.msg);
             })
 
             socket.on('noGames', () => {
-                waiting.isWaiting = false;
+                self.isLoggedIn = true;
+                self.inGame = false;
+                self.isWatcher = false;
+                self.waiting.isWaiting = false;
+                self.$apply()
+
                 alert("Could not find any available game")
             })
 
@@ -151,8 +161,13 @@ app.controller('mainController', ['$scope', function ($scope) {
                 $scope.$apply();
 
                 setTimeout(() => {
-                    alert(data.winner + " just won the game with hand of " + data.hand + ". Congratz, re-draw in few seconds")
+                    var name = data.winner == self.player.username ? "You've" : data.winner;
+                    alert(name + " just won the game with hand of " + data.hand + ". Congratz, re-draw in few seconds")
                 }, 2000);
+            })
+
+            socket.on('cantCall', () =>{
+                alert("You cannot Call because of low amount of tokens")
             })
 
             socket.on('gameHasStarted', data => {
@@ -198,6 +213,7 @@ app.controller('mainController', ['$scope', function ($scope) {
         self.isLoggedIn = true;
         self.inGame = false;
         self.isWatcher = false;
+        self.waiting.isWaiting = false;
         self.player = player;
 
         self.$apply()
@@ -272,6 +288,10 @@ app.controller('mainController', ['$scope', function ($scope) {
         self.myBet.status = "all-in";
         self.myBet.bet = self.player.tokens
         socket.emit('makeAMove', self.myBet)
+    }
+
+    self.quitGame = function(){
+        socket.emit('quitGame')
     }
 
     self.splitToHalf = function (others, first) {
